@@ -6,7 +6,7 @@ export function Logo() {
   return (
     <span className="flex items-baseline gap-[0.6rem]">
       <span className="font-serif text-[24px] leading-none tracking-[0.18em]">{BRAND.name}</span>
-      <span className="font-mono text-[8px] tracking-[0.24em] opacity-80">{BRAND.suffix}</span>
+      <span className="font-mono text-[9.5px] tracking-[0.22em] opacity-80">{BRAND.suffix}</span>
     </span>
   )
 }

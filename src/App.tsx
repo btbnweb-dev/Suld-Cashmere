@@ -74,7 +74,9 @@ export default function App() {
         <section
           id="collection"
           data-nav="light"
-          className="relative bg-[var(--ivory)] px-[1.5rem] py-[14vh] sm:px-[3rem]"
+          // Extra top padding on small screens: the collection begins right where the pin
+          // releases, so its heading otherwise arrives directly under the fixed navbar.
+          className="relative bg-[var(--ivory)] px-[1.5rem] pt-[calc(14vh+56px)] pb-[14vh] sm:px-[3rem] sm:pt-[14vh]"
           aria-labelledby="collection-heading"
         >
           <div className="mx-auto max-w-[1500px]">

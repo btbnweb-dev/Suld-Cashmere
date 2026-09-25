@@ -203,7 +203,16 @@ export function Film({
 
   return (
     <section ref={section} id="film" className="relative bg-[var(--ink)]">
-      <div ref={stage} id="film-stage" className="relative h-[100svh] min-h-[540px] w-full overflow-hidden">
+      <div
+        ref={stage}
+        id="film-stage"
+        // `min-h` guards against a collapsed stage on very short portrait screens, but a
+        // landscape phone is ~390px tall: the floor then forced a 540px stage inside a
+        // 390px viewport, so the film was cropped far harder than intended and the pin
+        // measured against a box taller than the screen. The floor is dropped once the
+        // viewport is landscape-shaped, where 100svh is already the correct height.
+        className="relative h-[100svh] min-h-[540px] w-full overflow-hidden [@media(max-height:560px)]:min-h-0"
+      >
         <canvas ref={canvas} className="absolute inset-0 h-full w-full" aria-hidden="true" />
 
         {/* Shown only until the first frame paints. No invented percentage — there is

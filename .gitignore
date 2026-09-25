@@ -1,0 +1,36 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# QA artifacts: browser screenshots, contact sheets and duplicate frame sequences
+# produced by `npm run film:qa` / the render pipeline. Reproducible, ~88MB, and the
+# build does not read them.
+verification/
+
+# Full-resolution source plates (~20MB). The shipped frames live in public/sequence/;
+# these are the originals the renderer composited from. Provenance records are kept.
+sources/**/*.png

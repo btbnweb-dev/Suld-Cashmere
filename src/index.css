@@ -1,0 +1,242 @@
+@import "@fontsource-variable/playfair-display/wght.css";
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "tailwindcss";
+@source "./";
+
+@theme {
+  --font-serif: "Playfair Display Variable", Georgia, serif;
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+:root {
+  /* Warm natural fibre tones: ivory through sand and camel to a deep soft brown, with a
+     muted burgundy reserved for the single accent. Nothing here is fully saturated and
+     nothing is pure white or black — raw cashmere never is. */
+  --ivory: #f6f2ea;
+  --cream: #efe8dc;
+  --sand: #e2d7c5;
+  --taupe: #b8a893;
+  --camel: #a9885f;
+  --clay: #6d5c4a;
+  --charcoal: #2b2724;
+  --ink: #1a1715;
+  --wine: #6b3a3f;
+
+  color-scheme: light;
+  background: var(--ivory);
+  color: var(--charcoal);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 84px;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--ivory);
+  overflow-x: clip;
+}
+
+/* Layered so Tailwind's utilities (a later layer) always win. Unlayered, these rules have
+   the same specificity as a margin utility but come later in the cascade, which silently
+   cancels every `mb-*` on a heading. */
+@layer base {
+  h1, h2, h3, p, figure, blockquote, dl, dd { margin: 0; }
+}
+
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+img { display: block; max-width: 100%; }
+
+::selection { background: var(--camel); color: var(--ivory); }
+:focus-visible { outline: 2px solid var(--camel); outline-offset: 3px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.skip-link {
+  position: fixed; top: 14px; left: 18px; z-index: 400;
+  padding: 12px 22px; background: var(--charcoal); color: var(--ivory);
+  font-size: 14px; font-weight: 600; transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; }
+
+/* ---------- typography ---------- */
+.display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  /* Playfair's Cyrillic ascenders need more room than its Latin at display sizes. */
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.body-copy {
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+/* ---------- reveal primitives ----------
+   Structural only. Every transform is applied by GSAP, because a CSS entry animation
+   fires at mount — long before a scroll-driven scene is reached. */
+.line { display: block; overflow: hidden; }
+.line > span {
+  display: block;
+  /* Room for descenders inside the mask, pulled back so no visible gap opens. */
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+  will-change: transform;
+}
+
+.frame { overflow: hidden; position: relative; }
+.frame > img { width: 100%; height: 100%; object-fit: cover; will-change: transform; }
+
+/* ---------- cursor ---------- */
+.cursor-ring {
+  position: fixed; top: 0; left: 0; z-index: 350;
+  display: grid; place-items: center;
+  width: 72px; height: 72px; margin: -36px 0 0 -36px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ivory) 45%, transparent);
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  backdrop-filter: blur(2px);
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ivory);
+  pointer-events: none;
+  opacity: 0; transform: scale(0.4);
+  transition: opacity 0.35s, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cursor-ring.is-on { opacity: 1; transform: scale(1); }
+
+/* ---------- controls ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 15px 28px;
+  font-size: 13px; font-weight: 500; letter-spacing: 0.04em;
+  border: 1px solid currentColor;
+  transition: background-color 0.4s, color 0.4s, border-color 0.4s;
+}
+.btn-solid { background: var(--ivory); border-color: var(--ivory); color: var(--ink); }
+.btn-solid:hover { background: var(--camel); border-color: var(--camel); color: var(--ivory); }
+.btn-ghost { background: color-mix(in srgb, var(--ink) 22%, transparent); backdrop-filter: blur(3px); }
+.btn-ghost:hover { background: color-mix(in srgb, var(--ivory) 16%, transparent); }
+
+/* ---------- reduced motion ----------
+   Content stays; only motion is removed. Layers the scene would have revealed are made
+   visible so nothing depends on a tween that never runs. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .cursor-ring { display: none; }
+}
+
+
+/* Focused collection, navigation and cinematic-copy polish. */
+.site-header {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 300;
+  color: #252320;
+  background: rgba(248, 245, 239, .92);
+  border-bottom: 1px solid rgba(37, 35, 32, .14);
+  box-shadow: 0 3px 20px rgba(25, 23, 20, .055);
+  backdrop-filter: blur(18px) saturate(.75);
+  -webkit-backdrop-filter: blur(18px) saturate(.75);
+}
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1500px;
+  height: 64px;
+  margin-inline: auto;
+  padding-inline: 3rem;
+}
+.nav-link { font-size: 14px; color: #47423b; transition: color .2s; }
+.nav-link:hover, .nav-link:focus-visible { color: #11100e; }
+.nav-edition {
+  font: 500 10px/1.4 var(--font-mono);
+  letter-spacing: .14em;
+  color: #5f574c;
+  white-space: nowrap;
+}
+.mobile-nav { padding: .4rem 1.5rem 1.5rem; border-top: 1px solid #25232018; }
+.site-header[data-menu-open="true"] { background: rgba(248,245,239,.98); }
+.story-headline {
+  font-size: clamp(32px, 5.5vw, 80px);
+  line-height: 1.12;
+  letter-spacing: -.025em;
+}
+.story-copy {
+  position: relative;
+  isolation: isolate;
+  width: fit-content;
+  max-width: min(900px, 100%);
+  color: #211d18;
+  text-shadow: 0 1px 12px rgba(246,242,234,.45);
+}
+.story-copy::before {
+  content: '';
+  position: absolute;
+  inset: -3rem -4rem;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse, rgba(246,242,234,.74) 0%, rgba(246,242,234,.30) 48%, transparent 73%);
+}
+.story-kicker, .story-tags .meta {
+  font-size: 11px;
+  letter-spacing: .18em;
+  opacity: .88;
+}
+.story-copy .story-kicker { margin-bottom: 1.2rem; }
+.story-copy .story-tags { gap: .8rem 1.5rem; }
+.story-close .body-copy { font-size: 16px; opacity: .95; }
+.story-close > div > .meta { opacity: .85; }
+.story-still .story-headline { text-shadow: 0 2px 20px rgba(0,0,0,.3); }
+.story-counter {
+  color: #211d18;
+  padding: .45rem .7rem;
+  background: rgba(246,242,234,.8);
+  border: 1px solid rgba(33,29,24,.12);
+}
+.story-counter .meta { font-size: 11px; opacity: .85; }
+.collection-caption { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; margin-top: 1.25rem; }
+.collection-caption .meta { opacity: .7; font-size: 10px; letter-spacing: .12em; }
+@media (max-width: 639px) {
+  .nav-inner { height: 60px; gap: .6rem; padding-inline: 1rem; }
+  .nav-edition { font-size: 8px; letter-spacing: .07em; }
+  .nav-tools { gap: .5rem; }
+  .collection-caption { flex-direction: column; align-items: flex-start; gap: .35rem; }
+  .collection-caption .meta { font-size: 9px; letter-spacing: .10em; }
+  .story-copy::before { inset: -2rem -1.5rem; }
+}
+@media (max-height: 700px) {
+  .story-close .story-headline { font-size: clamp(30px, 4.5vw, 56px); }
+  .story-close .body-copy { margin-top: 1rem; }
+  .story-close .story-actions { margin-top: 1.4rem; }
+  .story-close > div > .meta { margin-block: 1rem; }
+}

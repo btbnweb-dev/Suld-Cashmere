@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-25",
+  "provider": "OpenAI built-in image generation",
+  "reference": "../campaign/campaign.png",
+  "purpose": "Fictional SULD Cashmere portfolio collection",
+  "completed": {
+    "knit.png": "Oatmeal fine-gauge crewneck sweater folded on warm limestone; generated original.",
+    "coat.png": "Oatmeal shawl-collar coat on pale wooden hanger, matching plaster/limestone set; generated using knit as reference.",
+    "scarf.png": "Long oatmeal woven scarf with two clearly fringed ends draped over limestone; generated using knit as reference.",
+    "essentials.png": "Coordinated folded scarf, ribbed beanie and gloves on limestone; generated using knit as reference."
+  },
+  "stockCandidatesInstalled": false
+}

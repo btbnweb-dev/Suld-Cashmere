@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><meta charset="utf-8">
+<title>SULD offline film compositor</title>
+<style>html,body{margin:0;overflow:hidden;background:#c2ae97}canvas{display:block}</style>
+<canvas width="1600" height="900"></canvas>
+<script>
+const canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d');
+const layer=document.createElement('canvas');layer.width=1600;layer.height=900;
+const lctx=layer.getContext('2d');
+const images={};
+window.__ready=Promise.all(['raw','yarn','weave','fabric','campaign'].map(async name=>{
+ const image=new Image();image.src='/plates/'+name+'.png';await image.decode();images[name]=image;
+}));
+function draw(c,p){
+ const im=images[p.name], s=Math.max(1600/im.width,900/im.height)*p.s;
+ c.save();
+ if(p.flip){c.translate(1600,0);c.scale(-1,1)}
+ c.drawImage(im,800-im.width*p.cx*s,450-im.height*p.cy*s,im.width*s,im.height*s);
+ c.restore();
+}
+window.setFrame=async state=>{
+ await window.__ready;
+ ctx.clearRect(0,0,1600,900);draw(ctx,state.base);
+ if(state.top){
+  lctx.clearRect(0,0,1600,900);draw(lctx,state.top);
+  const t=state.mask.t, kind=state.mask.kind;
+  lctx.globalCompositeOperation='destination-in';
+  let g;
+  if(kind==='thread'){
+   // Reveal starts on the same central yarn axis, then opens outward.
+   g=lctx.createLinearGradient(0,0,0,900);
+   const feather=.075, radius=t*.68;
+   const lo=Math.max(0,.5-radius),hi=Math.min(1,.5+radius);
+   g.addColorStop(0,lo===0?'white':'transparent');
+   g.addColorStop(Math.max(0,lo-feather),'transparent');
+   g.addColorStop(lo,'white');g.addColorStop(hi,'white');
+   g.addColorStop(Math.min(1,hi+feather),'transparent');
+   g.addColorStop(1,hi===1?'white':'transparent');
+   if(t>.86) {g=lctx.createLinearGradient(0,0,0,900);g.addColorStop(0,'white');g.addColorStop(1,'white')}
+  }else{
+   // A broad feather follows the diagonal cloth edge/lapel rather than dissolving.
+   const pos=-.35+t*1.70;
+   g=lctx.createLinearGradient(0,kind==='fold'?900:0,1600,kind==='fold'?0:900);
+   g.addColorStop(0,'white');
+   g.addColorStop(Math.max(0,Math.min(1,pos-.14)),'white');
+   g.addColorStop(Math.max(0,Math.min(1,pos+.14)),'transparent');
+   g.addColorStop(1,'transparent');
+   if(t>.93){g=lctx.createLinearGradient(0,0,1600,0);g.addColorStop(0,'white');g.addColorStop(1,'white')}
+  }
+  lctx.fillStyle=g;lctx.fillRect(0,0,1600,900);
+  lctx.globalCompositeOperation='source-over';
+  ctx.drawImage(layer,0,0);
+ }
+ // Restrained constant edge falloff; no artificial grain or moving light streak.
+ const vignette=ctx.createRadialGradient(800,450,350,800,450,1000);
+ vignette.addColorStop(0,'rgba(47,37,29,0)');vignette.addColorStop(1,'rgba(47,37,29,.10)');
+ ctx.fillStyle=vignette;ctx.fillRect(0,0,1600,900);
+};
+</script></html>

@@ -1,0 +1,15 @@
+{
+  "created": "2026-09-24",
+  "provider": "OpenAI image generation tool",
+  "purpose": "Original AI-generated imagery for the fictional SULD Cashmere portfolio/demo; not real products or documentary manufacturing footage.",
+  "externalPhotography": false,
+  "artDirection": "Warm oatmeal cashmere, soft daylight from upper left, taupe plaster, single Mongolian adult model in the same oatmeal shawl-collar coat.",
+  "plates": {
+    "campaign.png": "Master editorial model and garment. FORM, EDITORIAL and FINAL use the same plate.",
+    "fabric.png": "Cashmere macro generated using campaign as material/light reference.",
+    "weave.png": "Weave generated using fabric as reference.",
+    "yarn.png": "Yarn generated using weave as reference.",
+    "raw.png": "Raw cashmere generated using yarn as reference."
+  },
+  "revision": "2026-09-25: master campaign reframed from original generated plate to give navbar-safe headroom; outfit, model and lighting retained."
+}

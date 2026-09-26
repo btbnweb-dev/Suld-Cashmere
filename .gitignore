@@ -34,3 +34,7 @@ verification/
 # Full-resolution source plates (~20MB). The shipped frames live in public/sequence/;
 # these are the originals the renderer composited from. Provenance records are kept.
 sources/**/*.png
+
+# Local environment (never commit real values)
+.env
+.env.local

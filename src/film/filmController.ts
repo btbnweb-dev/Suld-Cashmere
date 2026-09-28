@@ -51,8 +51,7 @@ export function mountFilm(options: FilmOptions): FilmHandle {
   if (!ctx) return { destroy: () => {} }
 
   const images: (HTMLImageElement | null)[] = new Array(frameCount).fill(null)
-  let current = -1
-  /** Index of the image actually on the canvas — a substitute's index when one is showing. */
+  /** Index of the frame actually on the canvas; -1 before the first paint. */
   let painted = -1
   /**
    * Frame the scroll position wants. Written only by `onUpdate` — the scroll owns it — and
@@ -84,33 +83,23 @@ export function mountFilm(options: FilmOptions): FilmHandle {
   }
 
   /**
-   * Draw frame `i`, falling back to the nearest decoded neighbour.
+   * Draw frame `i`, or hold whatever is already on the canvas.
    *
-   * `current` records what is actually on the canvas, so it is only advanced when the exact
-   * frame was drawn. Recording a substituted neighbour as `current` made `onUpdate`'s
-   * `frame !== current` guard believe the right image was already up: the correct frame
-   * then arrived from the network and was never drawn, and the canvas stayed frozen on the
-   * substitute until the frame index happened to change again.
+   * There is deliberately no nearest-neighbour substitution. An earlier version searched
+   * outwards for any decoded frame, which was tolerable only while the cache was a
+   * contiguous block from 0: the substitute was then an immediate neighbour and looked
+   * near-identical. Once the loader began filling around the reader, the cache became
+   * sparse and the nearest decoded frame could be twenty indices away, in a different
+   * chapter — so the canvas visibly popped between unrelated images while scrolling.
+   *
+   * Holding the last correct frame for a moment is far less noticeable than jumping to the
+   * wrong one, so a missing frame now paints nothing and simply waits for `load` to arrive.
    */
   const drawFrame = (i: number) => {
     const idx = Math.min(frameCount - 1, Math.max(0, i))
-    const exact = images[idx]
-    if (exact) {
-      if (painted !== idx) { drawCover(exact); painted = idx }
-      current = idx
-      return
-    }
-    // No exact frame. Show the nearest decoded neighbour rather than a blank canvas, but
-    // leave `current` short of `idx` so the substitute is never mistaken for the real thing.
-    let sub: HTMLImageElement | null = null
-    let subIdx = -1
-    for (let d = 1; d < frameCount && !sub; d++) {
-      if (images[idx - d]) { sub = images[idx - d]!; subIdx = idx - d }
-      else if (images[idx + d]) { sub = images[idx + d]!; subIdx = idx + d }
-    }
-    if (!sub) return
-    if (painted !== subIdx) { drawCover(sub); painted = subIdx }
-    current = -1
+    const img = images[idx]
+    if (!img) return
+    if (painted !== idx) { drawCover(img); painted = idx }
   }
 
   const load = (i: number) => new Promise<void>(resolve => {
@@ -119,10 +108,10 @@ export function mountFilm(options: FilmOptions): FilmHandle {
     img.decoding = 'async'
     img.onload = () => {
       images[i] = img
-      // Repaint if this is the frame the scroll is sitting on. `onUpdate` does not fire
-      // while the reader is still, so without this the canvas would keep showing a
-      // substituted neighbour even though the real frame has arrived.
-      if (!disposed && wanted === i && painted !== i) drawFrame(i)
+      // Paint immediately if this is the frame the scroll is sitting on: `onUpdate` does
+      // not fire while the reader is still, so a frame that arrives during a hold has to
+      // draw itself or the canvas would stay on the previous one.
+      if (!disposed && wanted === i) drawFrame(i)
       resolve()
     }
     img.onerror = () => resolve()
@@ -130,57 +119,63 @@ export function mountFilm(options: FilmOptions): FilmHandle {
   })
 
   /**
-   * Staged preload, continuously re-aimed at the reader.
+   * Staged preload: the opening run first, then a priority window around the reader, then
+   * the rest in order.
    *
-   * The original version awaited frames strictly in index order from 0. That is fine if the
-   * visitor starts at the top and scrolls steadily, and badly wrong otherwise: entering the
-   * film part-way — a reload mid-scroll, or a nav link into a later chapter — left the frame
-   * actually on screen queued behind every earlier one, so on a slow connection the canvas
-   * held the same image for tens of seconds. That is the reported stall.
+   * The original loader walked 0…159 strictly in order. That kept the cache contiguous,
+   * which is what made the film look smooth, but it meant a visitor entering part-way — a
+   * reload mid-scroll, or a nav link into a later chapter — waited for every earlier frame
+   * before the one on screen was even requested.
    *
-   * Two properties matter here and a batched loop has neither. The next frame to fetch is
-   * chosen one at a time, so a reader who jumps is served by the very next request rather
-   * than after the current batch drains; and several requests stay in flight, so the pipe
-   * stays full while still being re-aimed between each completion.
+   * The fix is only about priority, not order. Frames are still fetched in ascending runs,
+   * so the cache stays in contiguous blocks; the loader simply starts with the block the
+   * reader is actually in. `sweep` fills an ascending range and skips what is already held,
+   * so no frame is fetched twice however the windows overlap.
    */
   ;(async () => {
     await load(0)
     if (disposed) return
     // Frame 0 can take seconds on a slow connection, by which time the reader may already
-    // be deep in the film. Only paint it if nothing better is called for; `wanted` is owned
-    // by the scroll, so drawing must never write to it.
-    if (painted < 0 && wanted === 0) drawFrame(0)
+    // be deep in the film. Only paint it if nothing else has been painted yet.
+    if (painted < 0) drawFrame(0)
     options.onReady?.()
 
-    const remaining = new Set<number>()
-    for (let i = 1; i < frameCount; i++) remaining.add(i)
-
-    /** Nearest still-missing frame to where the reader actually is. */
-    const claimNearest = (): number | null => {
-      let best: number | null = null
-      let bestDistance = Infinity
-      for (const i of remaining) {
-        const d = Math.abs(i - wanted)
-        if (d < bestDistance) { bestDistance = d; best = i }
-      }
-      if (best !== null) remaining.delete(best)
-      return best
-    }
-
-    // Enough parallelism to keep the connection busy, few enough that a jump is reflected
-    // within one frame's transfer rather than a whole batch's.
-    const LANES = 4
-    const lane = async () => {
-      while (!disposed) {
-        const i = claimNearest()
-        if (i === null) return
-        await load(i)
-        if (disposed) return
-        // The frame under the reader may have just landed.
-        if (painted !== wanted && images[wanted]) drawFrame(wanted)
+    /**
+     * Load `from`…`to` in ascending order, skipping frames already held.
+     *
+     * Ascending and contiguous is the point: it is what keeps the decoded cache in solid
+     * blocks, so a frame that is not ready is surrounded by frames that are, and the hold
+     * is brief. `abort` lets a sweep give way when the reader has moved elsewhere.
+     */
+    const sweep = async (from: number, to: number, abort?: () => boolean) => {
+      for (let i = Math.max(0, from); i <= Math.min(frameCount - 1, to) && !disposed; i++) {
+        if (abort?.()) return
+        if (!images[i]) await load(i)
       }
     }
-    await Promise.all(Array.from({ length: LANES }, lane))
+
+    // The opening run, so the start is scrubbable immediately. It yields as soon as the
+    // reader has moved out of it, so entering the film part-way is not made to wait for
+    // thirty frames nobody is looking at.
+    await sweep(1, 29, () => wanted > 29)
+
+    // Then keep serving the reader's own neighbourhood before filling the gaps. `wanted`
+    // is re-read every pass, so someone who jumps mid-download is picked up on the next
+    // window rather than after the whole sequence drains.
+    while (!disposed) {
+      const at = wanted
+      // Ascending window that leads the reader slightly: forward scrolling is the common
+      // case, and a small backward margin covers reverse scrubbing.
+      await sweep(at - 8, at + 24)
+      if (disposed) return
+      // Nothing left to do for this position — fill the earliest remaining gap so the
+      // sequence still completes, then re-check where the reader has moved to.
+      if (wanted === at) {
+        const gap = images.findIndex(img => !img)
+        if (gap < 0) return
+        await sweep(gap, gap + 11)
+      }
+    }
   })()
 
   const st = ScrollTrigger.create({
@@ -195,11 +190,10 @@ export function mountFilm(options: FilmOptions): FilmHandle {
     onUpdate: self => {
       const frame = Math.round(self.progress * (frameCount - 1))
       // Direct scroll-to-frame, unchanged: no tweened playhead sits between the two.
-      // `wanted` is set unconditionally and before the draw: the loader steers by it, and
-      // leaving it behind (as an early return from `drawFrame` would) sends the loader off
-      // fetching frames nobody is looking at.
+      // `wanted` is set before the draw and regardless of it, because the loader steers by
+      // it and a frame that cannot be drawn yet is exactly the one to prioritise.
       wanted = frame
-      if (frame !== current) drawFrame(frame)
+      if (frame !== painted) drawFrame(frame)
       options.onProgress?.(self.progress)
       options.onFrame?.(frame, self.progress)
     },

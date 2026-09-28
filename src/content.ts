@@ -80,6 +80,19 @@ export const SCENE_COPY = {
   },
 } as const
 
+/**
+ * Reduced-motion notice.
+ *
+ * Shown only when the system asks for reduced motion. It says what the visitor is looking
+ * at and offers the film as a choice — without it the stills read as a broken animation.
+ */
+export const MOTION_NOTICE = {
+  label: 'Хөдөлгөөн багасгасан горим',
+  body: 'Таны системийн тохиргоонд хөдөлгөөн багасгасан байна. Түүхийг хөдөлгөөнгүй зургаар үзүүлж байна.',
+  action: 'Бүтэн анимацийг үзэх',
+  hint: 'Энэ цонхны хугацаанд л үйлчилнэ. Системийн тохиргоо өөрчлөгдөхгүй.',
+} as const
+
 /** Closing collection strip, shown after the pin releases. */
 export const COLLECTION = [
   { img: 'collection-knit', mn: 'Нэхмэл', en: 'KNIT', alt: 'Чулуун тавцан дээр эвхэж тавьсан шаргал ноолууран цамц' },

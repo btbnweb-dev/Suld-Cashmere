@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap, ScrollTrigger } from './lib/hooks'
 import { mountFilm } from './film/filmController'
-import { BRAND, SCENE_COPY, SCENES } from './content'
+import { BRAND, MOTION_NOTICE, SCENE_COPY, SCENES } from './content'
 
 const FRAME_COUNT = 160
 const DIR = '/sequence'
@@ -34,10 +34,13 @@ const BEATS = SCENES.filter(scene => scene.id !== 'reveal').map(scene => ({
 }))
 
 export function Film({
-  mobile, motion, onProgress,
+  mobile, motion, reduced, onEnableMotion, onProgress,
 }: {
   mobile: boolean
   motion: boolean
+  /** The system preference itself, independent of any override the visitor has made. */
+  reduced: boolean
+  onEnableMotion: () => void
   onProgress: (p: number) => void
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -147,6 +150,26 @@ export function Film({
 
     return (
       <section id="film" className="story-still relative bg-[var(--ink)]">
+        {/* Placed before the chapters, not after them: someone who believes the animation is
+            broken will not scroll to the end to find the explanation. It sits in the flow
+            rather than floating over the film, so it never covers an image or traps focus. */}
+        {reduced && (
+        <div className="motion-notice">
+          <div className="motion-notice-inner">
+            <div>
+              <p className="meta motion-notice-label">{MOTION_NOTICE.label}</p>
+              <p className="motion-notice-body">{MOTION_NOTICE.body}</p>
+            </div>
+            <div className="motion-notice-action">
+              <button type="button" className="btn btn-ghost text-[var(--ivory)]" onClick={onEnableMotion}>
+                {MOTION_NOTICE.action}
+              </button>
+              <p className="meta motion-notice-hint">{MOTION_NOTICE.hint}</p>
+            </div>
+          </div>
+        </div>
+        )}
+
         {chapters.map((ch, i) => {
           const copy = C[ch.id as keyof typeof C] as {
             headline: readonly string[]

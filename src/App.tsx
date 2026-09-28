@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Cursor, Navbar, ProgressThread } from './components/Chrome'
 import {
-  useIsMobile, useIsTouch, useReducedMotion, useResizeRefresh, useScrollRefresh,
+  useIsMobile, useIsTouch, useMotionOverride, useReducedMotion, useResizeRefresh,
+  useScrollRefresh,
 } from './lib/hooks'
 import { Film } from './Film'
 import { BRAND, COLLECTION, FOOTER, SCENES, src, srcSet } from './content'
@@ -45,8 +46,12 @@ export default function App() {
   const mobile = useIsMobile()
   const touch = useIsTouch()
   const [progress, setProgress] = useState(0)
+  const [override, enableMotion] = useMotionOverride()
 
-  const motion = !reduced
+  // The system preference is the default; the override only ever turns motion on, and only
+  // after an explicit click. `Film` keys its controller effect on this, so flipping it
+  // mounts the scrub in place — no reload.
+  const motion = !reduced || override
 
   useNavTheme()
   useScrollRefresh()
@@ -64,7 +69,13 @@ export default function App() {
 
         {/* The pinned story. `data-nav="dark"` because the stage is dark throughout. */}
         <div data-nav="dark">
-          <Film mobile={mobile} motion={motion} onProgress={setProgress} />
+          <Film
+            mobile={mobile}
+            motion={motion}
+            reduced={reduced}
+            onEnableMotion={enableMotion}
+            onProgress={setProgress}
+          />
         </div>
 
         {/* ---------- COLLECTION ----------

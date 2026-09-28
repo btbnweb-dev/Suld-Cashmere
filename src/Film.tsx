@@ -34,13 +34,12 @@ const BEATS = SCENES.filter(scene => scene.id !== 'reveal').map(scene => ({
 }))
 
 export function Film({
-  mobile, motion, reduced, onEnableMotion, onProgress,
+  mobile, motion, onPreferStills, onPreferMotion, onProgress,
 }: {
   mobile: boolean
   motion: boolean
-  /** The system preference itself, independent of any override the visitor has made. */
-  reduced: boolean
-  onEnableMotion: () => void
+  onPreferStills: () => void
+  onPreferMotion: () => void
   onProgress: (p: number) => void
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -150,25 +149,16 @@ export function Film({
 
     return (
       <section id="film" className="story-still relative bg-[var(--ink)]">
-        {/* Placed before the chapters, not after them: someone who believes the animation is
-            broken will not scroll to the end to find the explanation. It sits in the flow
-            rather than floating over the film, so it never covers an image or traps focus. */}
-        {reduced && (
-        <div className="motion-notice">
-          <div className="motion-notice-inner">
-            <div>
-              <p className="meta motion-notice-label">{MOTION_NOTICE.label}</p>
-              <p className="motion-notice-body">{MOTION_NOTICE.body}</p>
-            </div>
-            <div className="motion-notice-action">
-              <button type="button" className="btn btn-ghost text-[var(--ivory)]" onClick={onEnableMotion}>
-                {MOTION_NOTICE.action}
-              </button>
-              <p className="meta motion-notice-hint">{MOTION_NOTICE.hint}</p>
-            </div>
+        {/* Returning to the film is one click and needs no system change — the stills are a
+            preference here, not a fallback the visitor is stuck in. */}
+        <div className="stills-bar">
+          <div className="stills-bar-inner">
+            <p className="meta stills-bar-label">{MOTION_NOTICE.stillsLabel}</p>
+            <button type="button" className="btn btn-ghost text-[var(--ivory)]" onClick={onPreferMotion}>
+              {MOTION_NOTICE.toFilm}
+            </button>
           </div>
         </div>
-        )}
 
         {chapters.map((ch, i) => {
           const copy = C[ch.id as keyof typeof C] as {
@@ -314,6 +304,15 @@ export function Film({
               </button>
             </div>
             <p className="meta mt-[2.5rem] opacity-45">{C.reveal.disclosure}</p>
+            {/* Motion opt-out. Offered here rather than as fixed chrome: by this point the
+                film has played, so the control is available without ever sitting over it. */}
+            <button
+              type="button"
+              className="meta stills-optout pointer-events-auto mt-[1.25rem]"
+              onClick={onPreferStills}
+            >
+              {MOTION_NOTICE.toStills}
+            </button>
           </div>
         </div>
 

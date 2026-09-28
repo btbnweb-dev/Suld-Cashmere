@@ -17,30 +17,29 @@ export function useMedia(query: string): boolean {
   return matches
 }
 
-export const useReducedMotion = () => useMedia('(prefers-reduced-motion: reduce)')
-
-/** Session-only key. `sessionStorage` so the override dies with the tab and the OS
- *  preference is authoritative again on the next visit — an accessibility setting should
- *  never be silently overridden for good by one click. */
-const MOTION_KEY = 'suld:motion-override'
+/** Session-only key. `sessionStorage` so the choice dies with the tab. */
+const STILLS_KEY = 'suld:prefer-stills'
 
 /**
- * Whether the visitor has explicitly asked for the full film despite `prefers-reduced-motion`.
+ * Whether the visitor has asked for the still chapters instead of the scroll film.
  *
- * The system preference stays the default: this only ever turns motion *on*, and only after
- * a deliberate click. Reading `sessionStorage` in the initialiser means a click that happens
- * to precede a route change or refresh survives it, while a new tab starts respecting the OS
- * setting again.
+ * The film is the product and always loads by default, including when the system asks for
+ * reduced motion — `prefers-reduced-motion` still governs the incidental CSS transitions
+ * and the custom cursor, but it no longer withholds the main experience behind a click.
+ * This is the opt-out for anyone who genuinely wants the stills.
  */
-export function useMotionOverride(): [boolean, () => void] {
+export function useStillsPreference(): [boolean, (on: boolean) => void] {
   const [on, setOn] = useState(() => {
-    try { return sessionStorage.getItem(MOTION_KEY) === '1' } catch { return false }
+    try { return sessionStorage.getItem(STILLS_KEY) === '1' } catch { return false }
   })
-  const enable = useCallback(() => {
-    try { sessionStorage.setItem(MOTION_KEY, '1') } catch { /* private mode — session-only anyway */ }
-    setOn(true)
+  const set = useCallback((next: boolean) => {
+    try {
+      if (next) sessionStorage.setItem(STILLS_KEY, '1')
+      else sessionStorage.removeItem(STILLS_KEY)
+    } catch { /* private mode — session-only anyway */ }
+    setOn(next)
   }, [])
-  return [on, enable]
+  return [on, set]
 }
 
 export const useIsMobile = () => useMedia('(max-width: 900px)')

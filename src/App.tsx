@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Cursor, Navbar, ProgressThread } from './components/Chrome'
 import {
-  useIsMobile, useIsTouch, useMotionOverride, useReducedMotion, useResizeRefresh,
-  useScrollRefresh,
+  useIsMobile, useIsTouch, useResizeRefresh, useScrollRefresh, useStillsPreference,
 } from './lib/hooks'
 import { Film } from './Film'
 import { BRAND, COLLECTION, FOOTER, SCENES, src, srcSet } from './content'
@@ -42,16 +41,16 @@ function useNavTheme() {
 }
 
 export default function App() {
-  const reduced = useReducedMotion()
   const mobile = useIsMobile()
   const touch = useIsTouch()
   const [progress, setProgress] = useState(0)
-  const [override, enableMotion] = useMotionOverride()
+  const [stills, setStills] = useStillsPreference()
 
-  // The system preference is the default; the override only ever turns motion on, and only
-  // after an explicit click. `Film` keys its controller effect on this, so flipping it
-  // mounts the scrub in place — no reload.
-  const motion = !reduced || override
+  // The film is the product, so it loads for everyone by default — `prefers-reduced-motion`
+  // no longer withholds it. That preference still governs the incidental transitions and the
+  // custom cursor (see index.css and `Cursor`), which is where it belongs: the main
+  // experience should never sit behind an extra click.
+  const motion = !stills
 
   useNavTheme()
   useScrollRefresh()
@@ -72,8 +71,8 @@ export default function App() {
           <Film
             mobile={mobile}
             motion={motion}
-            reduced={reduced}
-            onEnableMotion={enableMotion}
+            onPreferStills={() => setStills(true)}
+            onPreferMotion={() => setStills(false)}
             onProgress={setProgress}
           />
         </div>

@@ -52,6 +52,15 @@ export function mountFilm(options: FilmOptions): FilmHandle {
 
   const images: (HTMLImageElement | null)[] = new Array(frameCount).fill(null)
   let current = -1
+  /** Index of the image actually on the canvas — a substitute's index when one is showing. */
+  let painted = -1
+  /**
+   * Frame the scroll position wants. Written only by `onUpdate` — the scroll owns it — and
+   * read by the loader, so the frames under the reader are fetched before the ones nobody
+   * is looking at. A draw must never write it: the opening `drawFrame(0)` lands seconds
+   * late on a slow connection, and resetting it there sent the loader back to index 0.
+   */
+  let wanted = 0
   let disposed = false
 
   /** object-fit: cover, computed rather than stretched. */
@@ -74,45 +83,104 @@ export function mountFilm(options: FilmOptions): FilmHandle {
     ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh)
   }
 
-  /** Draw frame `i`, falling back to the nearest decoded neighbour. */
+  /**
+   * Draw frame `i`, falling back to the nearest decoded neighbour.
+   *
+   * `current` records what is actually on the canvas, so it is only advanced when the exact
+   * frame was drawn. Recording a substituted neighbour as `current` made `onUpdate`'s
+   * `frame !== current` guard believe the right image was already up: the correct frame
+   * then arrived from the network and was never drawn, and the canvas stayed frozen on the
+   * substitute until the frame index happened to change again.
+   */
   const drawFrame = (i: number) => {
     const idx = Math.min(frameCount - 1, Math.max(0, i))
-    let img = images[idx]
-    if (!img) {
-      // A gap in the cache shows a slightly stale frame rather than a blank canvas.
-      for (let d = 1; d < frameCount && !img; d++) {
-        img = images[idx - d] ?? images[idx + d] ?? null
-      }
+    const exact = images[idx]
+    if (exact) {
+      if (painted !== idx) { drawCover(exact); painted = idx }
+      current = idx
+      return
     }
-    if (!img) return
-    drawCover(img)
-    current = idx
+    // No exact frame. Show the nearest decoded neighbour rather than a blank canvas, but
+    // leave `current` short of `idx` so the substitute is never mistaken for the real thing.
+    let sub: HTMLImageElement | null = null
+    let subIdx = -1
+    for (let d = 1; d < frameCount && !sub; d++) {
+      if (images[idx - d]) { sub = images[idx - d]!; subIdx = idx - d }
+      else if (images[idx + d]) { sub = images[idx + d]!; subIdx = idx + d }
+    }
+    if (!sub) return
+    if (painted !== subIdx) { drawCover(sub); painted = subIdx }
+    current = -1
   }
 
   const load = (i: number) => new Promise<void>(resolve => {
     if (disposed || images[i]) return resolve()
     const img = new Image()
     img.decoding = 'async'
-    img.onload = () => { images[i] = img; resolve() }
+    img.onload = () => {
+      images[i] = img
+      // Repaint if this is the frame the scroll is sitting on. `onUpdate` does not fire
+      // while the reader is still, so without this the canvas would keep showing a
+      // substituted neighbour even though the real frame has arrived.
+      if (!disposed && wanted === i && painted !== i) drawFrame(i)
+      resolve()
+    }
     img.onerror = () => resolve()
     img.src = frameURL(dir, i)
   })
 
-  // Staged preload. The first frame gates the loading state; the opening run follows so the
-  // start is scrubbable immediately; the remainder streams in small batches so decoding
-  // never blocks the scroll thread.
+  /**
+   * Staged preload, continuously re-aimed at the reader.
+   *
+   * The original version awaited frames strictly in index order from 0. That is fine if the
+   * visitor starts at the top and scrolls steadily, and badly wrong otherwise: entering the
+   * film part-way — a reload mid-scroll, or a nav link into a later chapter — left the frame
+   * actually on screen queued behind every earlier one, so on a slow connection the canvas
+   * held the same image for tens of seconds. That is the reported stall.
+   *
+   * Two properties matter here and a batched loop has neither. The next frame to fetch is
+   * chosen one at a time, so a reader who jumps is served by the very next request rather
+   * than after the current batch drains; and several requests stay in flight, so the pipe
+   * stays full while still being re-aimed between each completion.
+   */
   ;(async () => {
     await load(0)
     if (disposed) return
-    drawFrame(0)
+    // Frame 0 can take seconds on a slow connection, by which time the reader may already
+    // be deep in the film. Only paint it if nothing better is called for; `wanted` is owned
+    // by the scroll, so drawing must never write to it.
+    if (painted < 0 && wanted === 0) drawFrame(0)
     options.onReady?.()
-    const head = Math.min(frameCount, 30)
-    for (let i = 1; i < head && !disposed; i++) await load(i)
-    for (let i = head; i < frameCount && !disposed; i += 6) {
-      await Promise.all(
-        Array.from({ length: 6 }, (_, k) => (i + k < frameCount ? load(i + k) : Promise.resolve())),
-      )
+
+    const remaining = new Set<number>()
+    for (let i = 1; i < frameCount; i++) remaining.add(i)
+
+    /** Nearest still-missing frame to where the reader actually is. */
+    const claimNearest = (): number | null => {
+      let best: number | null = null
+      let bestDistance = Infinity
+      for (const i of remaining) {
+        const d = Math.abs(i - wanted)
+        if (d < bestDistance) { bestDistance = d; best = i }
+      }
+      if (best !== null) remaining.delete(best)
+      return best
     }
+
+    // Enough parallelism to keep the connection busy, few enough that a jump is reflected
+    // within one frame's transfer rather than a whole batch's.
+    const LANES = 4
+    const lane = async () => {
+      while (!disposed) {
+        const i = claimNearest()
+        if (i === null) return
+        await load(i)
+        if (disposed) return
+        // The frame under the reader may have just landed.
+        if (painted !== wanted && images[wanted]) drawFrame(wanted)
+      }
+    }
+    await Promise.all(Array.from({ length: LANES }, lane))
   })()
 
   const st = ScrollTrigger.create({
@@ -126,13 +194,20 @@ export function mountFilm(options: FilmOptions): FilmHandle {
     invalidateOnRefresh: true,
     onUpdate: self => {
       const frame = Math.round(self.progress * (frameCount - 1))
+      // Direct scroll-to-frame, unchanged: no tweened playhead sits between the two.
+      // `wanted` is set unconditionally and before the draw: the loader steers by it, and
+      // leaving it behind (as an early return from `drawFrame` would) sends the loader off
+      // fetching frames nobody is looking at.
+      wanted = frame
       if (frame !== current) drawFrame(frame)
       options.onProgress?.(self.progress)
       options.onFrame?.(frame, self.progress)
     },
   })
 
-  const onResize = () => { if (current >= 0) drawFrame(current) }
+  // `painted` suppresses redundant draws, so a resize has to invalidate it explicitly or
+  // the canvas would keep the old backing-store size after the viewport changes.
+  const onResize = () => { painted = -1; drawFrame(wanted) }
   addEventListener('resize', onResize)
 
   return {

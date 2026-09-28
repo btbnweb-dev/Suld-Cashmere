@@ -81,16 +81,15 @@ export const SCENE_COPY = {
 } as const
 
 /**
- * Reduced-motion notice.
+ * Motion-preference copy.
  *
- * Shown only when the system asks for reduced motion. It says what the visitor is looking
- * at and offers the film as a choice — without it the stills read as a broken animation.
+ * The film always plays by default, so none of this explains a fallback: it is simply the
+ * pair of labels for choosing stills and for coming back.
  */
 export const MOTION_NOTICE = {
-  label: 'Хөдөлгөөн багасгасан горим',
-  body: 'Таны системийн тохиргоонд хөдөлгөөн багасгасан байна. Түүхийг хөдөлгөөнгүй зургаар үзүүлж байна.',
-  action: 'Бүтэн анимацийг үзэх',
-  hint: 'Энэ цонхны хугацаанд л үйлчилнэ. Системийн тохиргоо өөрчлөгдөхгүй.',
+  stillsLabel: 'Хөдөлгөөнгүй хувилбар',
+  toFilm: 'Бүтэн түүхийг үзэх',
+  toStills: 'Хөдөлгөөнгүй хувилбараар үзэх',
 } as const
 
 /** Closing collection strip, shown after the pin releases. */

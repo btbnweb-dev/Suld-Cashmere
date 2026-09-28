@@ -153,54 +153,47 @@ img { display: block; max-width: 100%; }
   .cursor-ring { display: none; }
 }
 
-/* ---------- reduced-motion notice ----------
-   Shown above the still chapters when the system asks for reduced motion. Quiet enough to
-   read as part of the editorial, not as a browser warning: no icon, no colour alert, no
-   floating banner over the film. The point is to say what the visitor is looking at and
-   offer the film as a choice. */
-.motion-notice {
+/* ---------- stills mode chrome ----------
+   Shown only when the visitor has chosen the still chapters. Quiet, in the brand's own
+   type, and carrying the one control that takes them back to the film. */
+.stills-bar {
   background: var(--ink);
   border-bottom: 1px solid color-mix(in srgb, var(--ivory) 14%, transparent);
   color: var(--ivory);
   /* Clears the fixed navbar: this is the first block on the page in this mode. */
-  padding: calc(64px + 2.25rem) 1.5rem 2.25rem;
+  padding: calc(64px + 1.75rem) 1.5rem 1.75rem;
 }
-.motion-notice-inner {
+.stills-bar-inner {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 1.5rem 2rem;
+  gap: 1rem 2rem;
   max-width: 1500px;
   margin: 0 auto;
 }
-.motion-notice-label { opacity: .55; margin-bottom: .75rem; }
-.motion-notice-body {
-  font-size: 15px;
-  line-height: 1.55;
-  max-width: 46ch;
-  opacity: .85;
-}
-.motion-notice-action { display: flex; flex-direction: column; align-items: flex-start; gap: .75rem; }
-/* The label above earns the uppercase mono treatment; this footnote does not. All-caps
-   Cyrillic at 10.5px reads slowly, and it should sit under the button, not compete with it. */
-.motion-notice-hint {
-  opacity: .45;
-  max-width: 34ch;
-  text-transform: none;
-  letter-spacing: .01em;
-  font-size: 11.5px;
-  line-height: 1.5;
-}
-/* The global block above flattens transition-duration, so the hover/focus state has to be
+.stills-bar-label { opacity: .55; }
+/* The global reduced-motion block flattens transition-duration, so hover/focus has to be
    carried by colour alone — it is, and it still reads instantly without the fade. */
-.motion-notice .btn:hover,
-.motion-notice .btn:focus-visible {
+.stills-bar .btn:hover,
+.stills-bar .btn:focus-visible {
   background: color-mix(in srgb, var(--ivory) 16%, transparent);
 }
 
+/* Motion opt-out inside the film's closing block: a quiet text link, not a second CTA
+   competing with the collection button above it. */
+.stills-optout {
+  text-transform: none;
+  letter-spacing: .01em;
+  font-size: 11.5px;
+  opacity: .45;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.stills-optout:hover, .stills-optout:focus-visible { opacity: .8; }
+
 @media (min-width: 640px) {
-  .motion-notice { padding-inline: 3rem; }
+  .stills-bar { padding-inline: 3rem; }
 }
 
 
